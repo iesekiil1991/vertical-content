@@ -2674,7 +2674,7 @@ function buildOffer(bld,items){
       <div><div class="l">Від</div><div class="v">${Math.min(...items.map(i=>i.u.price))} $/м²</div></div></div>`:"",
     B.build&&builds.length?`<h3>Хід будівництва${C.buildDate?" · "+esc(C.buildDate):""}</h3>
       ${gallery(builds.slice(0,4))}`:"",
-    B.genplan&&C.genplan?`<h3>Генплан житлового комплексу</h3><img class="pic" src="${esc(C.genplan)}" alt="">`:"",
+    B.genplan&&C.genplan?`<h3>Генплан житлового комплексу</h3><img class="pic" src="${esc(String(C.genplan).trim().replace(/\s*\/\s*/g,"/"))}" alt="">`:"",
     B.floor&&fpHtml?fpHtml:"",
     !mapHtml&&B.map&&many(C.map).length?`<h3>Де це</h3>${many(C.map).map(u=>
       /\.(jpe?g|png|webp|gif|svg)(\?|$)/i.test(u)
