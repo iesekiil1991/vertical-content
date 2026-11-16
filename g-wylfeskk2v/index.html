@@ -2489,6 +2489,22 @@ function reqLine(){
   const h=$("c-hand").value; if(h) p.push("здача до "+h);
   return p.length?"Запит: "+p.join(" · "):"";
 }
+/* прев'ю посилання в месенджерах (Telegram, Viber, WhatsApp): картинка ЖК + ім'я клієнта */
+const OG_BASE="https://iesekiil1991.github.io/vertical-content/og/";
+function ogMeta(name,bld,maxTerm){
+  const slug=/urbn/i.test(bld)?"urbn":/hydropark/i.test(bld)?"hydropark":/porto/i.test(bld)?"porto-franko":"vertical";
+  const t=(name?name+", ваша":"Ваша")+" підбірка квартир — "+bld;
+  const d=(maxTerm>0?"Планування, ціни та розрахунок розтермінування під вас":"Планування, ціни та умови покупки під вас")+" · Vertical Development";
+  return `<meta name="description" content="${esc(d)}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Vertical Development">
+<meta property="og:title" content="${esc(t)}">
+<meta property="og:description" content="${esc(d)}">
+<meta property="og:image" content="${OG_BASE}${slug}.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="noindex">`;
+}
 function buildOffer(bld,items){
   /* ціна за м² вибраного варіанта поверхів (а не найдешевшого) — як у розрахунку генератора */
   const basePr=p=>p.priceOverride>0?p.priceOverride:varPrice(p,(p.u.vars&&p.u.vars[Math.min(p.varIdx||0,p.u.vars.length-1)])||{price:p.u.price});
@@ -2693,6 +2709,7 @@ function buildOffer(bld,items){
   return `<!doctype html><html lang="uk"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#01283C">
+${ogMeta(name,bld,maxTerm)}
 <title>${name?esc(name)+" — ":""}${esc(bld)} · пропозиція</title>
 <style>${FONT_CSS}${OFFER_CSS}</style></head><body data-until="${dmy(monthEnd()).slice(0,5)}"${(CFG.tgToken&&CFG.tgChat)?` data-trk='${JSON.stringify({k:String(CFG.tgToken).trim(),c:String(CFG.tgChat).trim(),n:name||"клієнт",o:bld+": "+items.map(p=>(p.u.rooms==="0"?"студія":p.u.rooms+"К")+" "+num(p.u.square)).join(", ")}).replace(/'/g,"&#39;")}'`:""}><div class="wrap">
 <header class="hero${heroImg?"":" plain"}">${heroImg?`<div class="bg" id="heroBg" style="background-image:url('${esc(heroImg)}')"></div>${(hasDN&&B.daynight)?`<div class="bg nt" id="heroNt" style="background-image:url('${esc(night)}')"></div>`:""}<div class="shade"></div>`:""}
