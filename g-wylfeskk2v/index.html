@@ -192,6 +192,7 @@ label.ck input{width:16px;height:16px;flex:none;accent-color:var(--gold)}
     <div class="row">
       <button class="btn gold" id="b-make">Створити офер</button>
       <button class="btn ghost" id="b-prev">Переглянути</button>
+      <button class="btn ghost" id="b-cards">🖼 Картки в месенджер</button>
     </div>
     <label class="ck" style="margin-top:10px"><input type="checkbox" id="o-over">
       <span>Перезаписати офер з такою ж назвою (інакше створиться новий: -2, -3)</span></label>
@@ -2766,6 +2767,181 @@ ${ogMeta(name,bld,maxTerm)}
 Пропозиція не є публічною офертою. ${esc(CFG.name)} · ${esc(CFG.phone)}</div>
 </div>${OFFER_JS}</body></html>`;
 }
+/* ================= КАРТКИ В МЕСЕНДЖЕР (картинка 1080×1350 на кожну квартиру + короткий текст) ================= */
+const CARD_MIRROR="https://iesekiil1991.github.io/vertical-content/crm/"; /* дзеркало планувань із CRM (CORS дозволений) */
+let cardsFontsReady=null;
+function cardsFonts(){
+  if(cardsFontsReady) return cardsFontsReady;
+  const st=document.createElement("style"); st.textContent=FONT_CSS; document.head.appendChild(st);
+  cardsFontsReady=Promise.all(["500 40px Benzin","700 40px Benzin","400 20px \"Grandis Extended\"","700 20px \"Grandis Extended\""]
+    .map(f=>document.fonts.load(f).catch(()=>null)));
+  return cardsFontsReady;
+}
+function cardImg(url){
+  return new Promise(res=>{
+    if(!url) return res(null);
+    const im=new Image(); im.crossOrigin="anonymous";
+    const t=setTimeout(()=>res(null),9000);
+    im.onload=()=>{clearTimeout(t);res(im);}; im.onerror=()=>{clearTimeout(t);res(null);};
+    im.src=String(url).trim().replace(/\s*\/\s*/g,"/");
+  });
+}
+function cardRR(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function cardCover(c,im,x,y,w,h,fy){const s=Math.max(w/im.width,h/im.height),iw=im.width*s,ih=im.height*s;c.save();c.beginPath();c.rect(x,y,w,h);c.clip();c.drawImage(im,x+(w-iw)/2,y+(h-ih)*(fy==null?.5:fy),iw,ih);c.restore();}
+/* обрізає білі поля навколо планування */
+function cardTrim(im){try{const w=im.naturalWidth||im.width,h=im.naturalHeight||im.height,k=Math.min(1,600/Math.max(w,h));const cv=document.createElement("canvas");cv.width=Math.round(w*k);cv.height=Math.round(h*k);const c=cv.getContext("2d");c.drawImage(im,0,0,cv.width,cv.height);const d=c.getImageData(0,0,cv.width,cv.height).data;let x0=cv.width,y0=cv.height,x1=-1,y1=-1;for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++){const i=(y*cv.width+x)*4;if(d[i]<235||d[i+1]<235||d[i+2]<235){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}}if(x1<0)return {im,sx:0,sy:0,sw:w,sh:h};const pad=8;x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(cv.width-1,x1+pad);y1=Math.min(cv.height-1,y1+pad);return {im,sx:x0/k,sy:y0/k,sw:(x1-x0+1)/k,sh:(y1-y0+1)/k};}catch(e){return {im,sx:0,sy:0,sw:im.width,sh:im.height};}}
+function cardPlan(c,t,x,y,w,h){const s=Math.min(w/t.sw,h/t.sh),iw=t.sw*s,ih=t.sh*s;c.drawImage(t.im,t.sx,t.sy,t.sw,t.sh,x+(w-iw)/2,y+(h-ih)/2,iw,ih);}
+function cardContain(c,im,x,y,w,h){const s=Math.min(w/im.width,h/im.height),iw=im.width*s,ih=im.height*s;c.drawImage(im,x+(w-iw)/2,y+(h-ih)/2,iw,ih);}
+function cardFit(c,txt,font,size,maxW,min){let s=size;do{c.font=font.replace("{s}",s);if(c.measureText(txt).width<=maxW)break;s-=2;}while(s>(min||18));return s;}
+function cardWrap(c,txt,x,y,maxW,lh,maxLines){
+  const words=String(txt).split(/\s+/);let line="",n=0;
+  for(let i=0;i<words.length;i++){const t=line?line+" "+words[i]:words[i];
+    if(c.measureText(t).width>maxW&&line){c.fillText(line,x,y+n*lh);n++;line=words[i];if(maxLines&&n>=maxLines)return n;}else line=t;}
+  if(line){c.fillText(line,x,y+n*lh);n++;}return n;
+}
+function cardData(p){
+  const u=p.u, rule=ruleFor(u.b,u.t), vs=u.vars||[{price:u.price,floors:u.floors}];
+  const vi=Math.min(p.varIdx||0,vs.length-1), base=p.priceOverride>0?p.priceOverride:varPrice(p,vs[vi]);
+  const o={area:u.square,base,rule,rooms:u.rooms,discIdx:p.discIdx};
+  const full=deal(Object.assign({},o,{months:0,first:0}));
+  const m=rule&&rule.terms.length?(p.months>0?p.months:defMonths(rule)):0;
+  const inst=m>0?deal(Object.assign({},o,{months:m,first:p.months>0?p.first:0})):null;
+  const floors=(p.floors||u.floors||[]).slice(0,8);
+  return {u,rule,full,inst,m,floors,dsc:DISC[p.discIdx]||{}};
+}
+async function drawCard(p,name){
+  await cardsFonts();
+  const d=cardData(p), u=d.u, W=1080, H=1350;
+  const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const c=cv.getContext("2d");
+  const NAVY="#01283B", GOLD="#FFAF11", MUTED="#4A6575";
+  const dn=DN_BUILTIN[u.b], C=CONTENT[u.b]||{};
+  const [render,plan]=await Promise.all([
+    cardImg((dn&&dn.d)||String(C.render||"").split(/\s*[\n,]\s*/).map(x=>x.trim()).filter(Boolean)[0]),
+    (async()=>{ const own=ownPlan(u.b,u.rooms,u.square); let im=own?await cardImg(own):null;
+      if(!im&&u.img){ const f=String(u.img).split("/").pop().split("?")[0]; im=await cardImg(CARD_MIRROR+f); }
+      return im; })()
+  ]);
+  c.fillStyle="#F4F6F7"; c.fillRect(0,0,W,H);
+  /* шапка з рендером */
+  const TOP=plan?380:640;
+  if(render) cardCover(c,render,0,0,W,TOP,.6); else { c.fillStyle=NAVY; c.fillRect(0,0,W,TOP); }
+  const g=c.createLinearGradient(0,0,0,TOP); g.addColorStop(0,"rgba(1,24,36,.25)"); g.addColorStop(.45,"rgba(1,24,36,.55)"); g.addColorStop(1,"rgba(1,24,36,.9)");
+  c.fillStyle=g; c.fillRect(0,0,W,TOP);
+  c.textBaseline="alphabetic";
+  c.fillStyle=GOLD; c.font='700 28px "Grandis Extended"'; c.fillText(name?"Підібрав для вас, "+name:"Підібрав для вас",60,TOP-150);
+  c.fillStyle="#fff"; cardFit(c,u.b,"700 {s}px Benzin",64,W-120,36); c.fillText(u.b,60,TOP-82);
+  const sub=[u.t, d.floors.length?(d.floors.length===1?"поверх ":"вільні поверхи ")+d.floors.join(", "):"", d.rule&&d.rule.hand?(/здан/i.test(d.rule.hand)?"будинок зданий":"здача "+d.rule.hand):""].filter(Boolean).join(" · ");
+  c.font='400 26px "Grandis Extended"'; c.fillStyle="rgba(255,255,255,.92)"; cardFit(c,sub,'400 {s}px "Grandis Extended"',26,W-120,18); c.fillText(sub,60,TOP-38);
+  /* біла картка з плануванням і назвою */
+  const bx=48, bw=W-96, by=TOP-28, bh=plan?552:172;
+  c.save(); c.shadowColor="rgba(1,40,59,.08)"; c.shadowBlur=30; c.shadowOffsetY=10; c.fillStyle="#fff"; cardRR(c,bx,by,bw,bh,28); c.fill(); c.restore();
+  if(plan) cardPlan(c,cardTrim(plan),bx+30,by+26,bw-60,400);
+  const ty=by+(plan?470:70);
+  c.fillStyle=NAVY; const title=(String(u.rooms)==="0"?"Студія":roomWord(u.rooms))+" · "+num(u.square)+" м²";
+  cardFit(c,title,"700 {s}px Benzin",40,bw-60,26); c.fillText(title,bx+30,ty);
+  const ds=String(p.desc||PLANS[u.square+"|"+u.rooms]||"").split(/(?<=[.!?])\s/)[0]||"";
+  if(ds){ c.fillStyle=MUTED; c.font='400 24px "Grandis Extended"'; cardWrap(c,ds,bx+30,ty+46,bw-60,30,plan?1:2); }
+  /* ціни */
+  const ry=by+bh+22, rh=278, two=!!d.inst, rw=two?(bw-20)/2:bw;
+  const box=(x,dark)=>{c.fillStyle=dark?NAVY:"#fff"; cardRR(c,x,ry,rw,rh,24); c.fill();};
+  box(bx,false);
+  c.fillStyle=MUTED; c.font='700 22px "Grandis Extended"'; c.fillText("ОПЛАТА 100%",bx+28,ry+50);
+  c.fillStyle=NAVY; cardFit(c,usd(d.full.total),"700 {s}px Benzin",52,rw-56,30); c.fillText(usd(d.full.total),bx+28,ry+118);
+  c.fillStyle=MUTED; c.font='400 22px "Grandis Extended"'; c.fillText(usd(d.full.avg)+"/м²",bx+28,ry+160);
+  if(d.full.save>0.5){
+    c.fillText("без знижки "+usd(d.full.total+d.full.save),bx+28,ry+192);
+    const chip=(d.dsc.promo?d.dsc.promo+" · ":"−"+fmt(d.full.discPct)+"% · ")+"вигода "+usd(d.full.save);
+    c.font='700 20px "Grandis Extended"'; const cw=Math.min(c.measureText(chip).width+28,rw-56);
+    c.fillStyle=GOLD; cardRR(c,bx+28,ry+212,cw,40,20); c.fill(); c.fillStyle=NAVY; c.fillText(chip,bx+42,ry+239,rw-84);
+  }
+  if(two){
+    const x2=bx+rw+20; box(x2,true);
+    c.fillStyle="rgba(255,255,255,.75)"; c.font='700 22px "Grandis Extended"'; c.fillText("РОЗТЕРМІНУВАННЯ "+d.m+" МІС",x2+28,ry+50,rw-56);
+    c.fillStyle=GOLD; cardFit(c,usd(d.inst.first),"700 {s}px Benzin",52,rw-56,30); c.fillText(usd(d.inst.first),x2+28,ry+118);
+    c.fillStyle="rgba(255,255,255,.85)"; c.font='400 22px "Grandis Extended"';
+    c.fillText("перший внесок",x2+28,ry+160);
+    c.fillText("далі "+usd(d.inst.monthly)+"/міс",x2+28,ry+192,rw-56);
+    c.fillText("разом "+usd(d.inst.total),x2+28,ry+224,rw-56);
+  }
+  /* підвал */
+  const fy=H-62;
+  c.fillStyle=NAVY; c.font='700 22px "Grandis Extended"'; c.fillText((CFG.name||"")+" · Vertical Development",48,fy,560);
+  c.fillStyle=MUTED; c.font='400 20px "Grandis Extended"'; c.fillText(CFG.phone||"",48,fy+30);
+  c.font='400 15px "Grandis Extended"'; c.fillStyle="#6B8290"; c.textAlign="right";
+  ["Ціни в $, оплата в гривні за курсом продажу АБ УКРГАЗБАНК","на день оплати. Ціни дійсні до "+dmy(monthEnd())+". Наявність","уточнюйте перед бронюванням."]
+    .forEach((l,i)=>c.fillText(l,W-48,fy-22+i*21));
+  c.textAlign="left";
+  const blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",.9));
+  return {blob,url:URL.createObjectURL(blob),hasPlan:!!plan,crmPlan:!plan&&u.img?u.img:"",d};
+}
+function cardsText(list,name){
+  const byB={}; list.forEach(x=>(byB[x.d.u.b]=byB[x.d.u.b]||[]).push(x.d));
+  const lines=[(name?name+", добрий день!":"Добрий день!")+" Підібрав для вас:"];
+  for(const b in byB){
+    lines.push("");
+    lines.push(b+":");
+    byB[b].forEach(d=>{
+      const fl=d.floors.length?(d.floors.length===1?", "+d.floors[0]+" поверх":", поверхи "+d.floors.slice(0,4).join(", ")):"";
+      let s="• "+roomShort(d.u.rooms)+" "+num(d.u.square)+" м²"+fl+" — "+usd(d.full.total)+" при 100% оплаті";
+      if(d.inst) s+=", або внесок "+usd(d.inst.first)+" і "+usd(d.inst.monthly)+"/міс на "+d.m+" міс";
+      lines.push(s);
+    });
+  }
+  lines.push("");
+  lines.push("Коли вам зручно коротко поговорити?");
+  return lines.join("\n");
+}
+async function makeCards(){
+  if(!picked.length){ toast("Спершу виберіть квартири"); return; }
+  const name=$("c-name").value.trim(), btn=$("b-cards");
+  btn.disabled=true; btn.textContent="Малюю картки…";
+  try{
+    picked.forEach((p,i)=>{ if(!p.calc) try{recalc(i);}catch(e){} });
+    const list=[]; for(const p of picked) list.push(await drawCard(p,name));
+    showCards(list,name);
+  }catch(e){ toast("Не вдалося створити картки: "+e.message); }
+  finally{ btn.disabled=false; btn.textContent="🖼 Картки в месенджер"; }
+}
+function showCards(list,name){
+  let m=$("cardsModal");
+  if(!m){
+    const st=document.createElement("style");
+    st.textContent="#cardsModal{position:fixed;inset:0;background:rgba(1,24,36,.72);z-index:9999;overflow:auto;padding:18px}"
+      +"#cardsModal .cm{max-width:760px;margin:0 auto;background:#fff;border-radius:18px;padding:18px}"
+      +"#cardsModal .cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:12px 0}"
+      +"#cardsModal .cg figure{margin:0}#cardsModal .cg img{width:100%;border-radius:10px;display:block;border:1px solid #e3e8eb}"
+      +"#cardsModal .cg figcaption{font-size:12px;color:#4A6575;margin-top:4px}#cardsModal textarea{width:100%;min-height:150px;font:inherit;font-size:14px;padding:10px;border-radius:10px;border:1px solid #d5dde2}"
+      +"#cardsModal .row{display:flex;gap:8px;flex-wrap:wrap}";
+    document.head.appendChild(st);
+    m=document.createElement("div"); m.id="cardsModal"; document.body.appendChild(m);
+  }
+  const files=list.map((x,i)=>new File([x.blob],`${slug(name||"klient")}-${i+1}.jpg`,{type:"image/jpeg"}));
+  const canShare=!!(navigator.canShare&&navigator.canShare({files}));
+  const noPlan=list.filter(x=>!x.hasPlan);
+  m.innerHTML=`<div class="cm">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b>Картки в месенджер · ${list.length}</b><button class="btn ghost sm" id="cm-x">Закрити</button></div>
+    <div class="hint" style="margin-top:6px">Надішліть картки, потім текст. Посилання на офер — за бажанням, у кінці.</div>
+    <div class="cg">${list.map((x,i)=>`<figure><img src="${x.url}" alt="Картка ${i+1}"><figcaption>${roomShort(x.d.u.rooms)} ${num(x.d.u.square)} м² · ${esc(x.d.u.b)}
+      ${navigator.clipboard&&window.ClipboardItem?` · <a href="#" data-cc="${i}">копіювати</a>`:""}</figcaption></figure>`).join("")}</div>
+    ${noPlan.length?`<div class="warn" style="margin-bottom:10px">Без планування: ${noPlan.map(x=>roomShort(x.d.u.rooms)+" "+num(x.d.u.square)+" м²").join(", ")} — його картинки немає у сховищі. ${noPlan.filter(x=>x.crmPlan).map(x=>`<a href="${esc(x.crmPlan)}" target="_blank" rel="noopener">планування з CRM</a>`).join(" · ")} — збережіть і надішліть окремо.</div>`:""}
+    <div class="row" style="margin-bottom:12px">
+      ${canShare?`<button class="btn gold" id="cm-share">📤 Поділитися картками</button>`:""}
+      <button class="btn ${canShare?"ghost":"gold"}" id="cm-dl">⬇️ Завантажити</button>
+    </div>
+    <textarea id="cm-txt">${esc(cardsText(list,name))}</textarea>
+    <div class="row" style="margin-top:8px"><button class="btn gold" id="cm-copy">📋 Копіювати текст</button></div>
+  </div>`;
+  m.hidden=false;
+  $("cm-x").onclick=()=>{ m.hidden=true; list.forEach(x=>URL.revokeObjectURL(x.url)); };
+  $("cm-copy").onclick=async()=>{ try{ await navigator.clipboard.writeText($("cm-txt").value); toast("Текст скопійовано"); }catch(e){ $("cm-txt").select(); document.execCommand("copy"); toast("Текст скопійовано"); } };
+  $("cm-dl").onclick=()=>files.forEach((f,i)=>setTimeout(()=>{ const a=document.createElement("a"); a.href=list[i].url; a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); },i*350));
+  if(canShare) $("cm-share").onclick=()=>navigator.share({files}).catch(()=>{});
+  m.querySelectorAll("[data-cc]").forEach(a=>a.onclick=async e=>{ e.preventDefault();
+    try{ const x=list[+a.dataset.cc]; const png=await new Promise(r=>{const im=new Image();im.onload=()=>{const cv=document.createElement("canvas");cv.width=im.width;cv.height=im.height;cv.getContext("2d").drawImage(im,0,0);cv.toBlob(r,"image/png");};im.src=x.url;});
+      await navigator.clipboard.write([new ClipboardItem({"image/png":png})]); toast("Картку скопійовано — вставте в чат (Ctrl+V)"); }
+    catch(err){ toast("Не вдалося скопіювати — скористайтесь «Завантажити»"); } });
+}
+
 function groupPicked(){
   const g={};
   for(const p of picked){ (g[p.u.b]=g[p.u.b]||[]).push(p); }
@@ -2783,6 +2959,7 @@ $("b-prev").onclick=()=>{
   const w=window.open("","_blank");
   w.document.write(buildOffer(k,g[k])); w.document.close();
 };
+$("b-cards").onclick=()=>makeCards();
 $("b-make").onclick=async()=>{
   const g=groupPicked(); const keys=Object.keys(g);
   if(!keys.length){toast("Спочатку виберіть квартири");return;}
