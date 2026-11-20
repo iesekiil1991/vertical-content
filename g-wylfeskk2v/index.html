@@ -748,7 +748,7 @@ function deal(u,months,discIdx,want,extra,pctW){
 function discOk(u,d){
   const r=String(u.rooms),nm=d.name||"";
   if(u.rule.noDisc)return d.pct===0||!!d.all;
-  if(d.req)return r==="0"&&!!u.rule.studioNoAdd;
+  if(d.req)return r==="0"&&!!u.rule.studioPromo;
   if(d.onInst){
     if(/Porto Franko 1-5/i.test(nm))return /PORTO FRANKO 1-5/i.test(u.rule.name||"");
     if(/3К/.test(nm))return r==="3"||r==="4";
@@ -1113,7 +1113,7 @@ const ls={
 /* ================= ПРАВИЛА ЦІН (прайс 01.08.2026) ================= */
 const RULES={
  urbn12 :{name:"URBN 1-2",          hand:"I кв. 2027",  minPct:20, terms:[{max:12,add:50}]},
- urbn37 :{name:"URBN 3-7",          hand:"I кв. 2028",  minPct:20, terms:[{max:12,add:30},{max:24,add:60},{max:25,add:75}], studioNoAdd:true, studioMinPct:30},
+ urbn37 :{name:"URBN 3-7",          hand:"I кв. 2028",  minPct:20, terms:[{max:12,add:30},{max:24,add:60},{max:25,add:75}], studioPromo:true},   /* студії: без надбавки й внесок 30% — лише з акцією «−5% студії URBN 3-7» (як у калькуляторі) */
  pf15   :{name:"PORTO FRANKO 1-5",  hand:"I кв. 2027",  minPct:20, terms:[{max:12,add:50}]},
  pf611  :{name:"PORTO FRANKO 6-11", hand:"I кв. 2028",  minPct:20, terms:[{max:12,add:30},{max:24,add:60},{max:25,add:75}]},
  hpdl12 :{name:"HYDROPARK 1-2",     hand:"I кв. 2028",  minPct:20, terms:[{max:12,add:50},{max:24,add:100},{max:25,add:150}]},
@@ -2541,8 +2541,8 @@ function buildOffer(bld,items){
     const isStudio=String(u.rooms)==="0";
     const cfg={a:u.square,b:basePr(p),
       t:ir.terms.map(t=>({m:t.max,a:t.add})),
-      mp:(discAllowed(ir,dsc)&&dsc.minPct&&ir.terms.length)?dsc.minPct:((isStudio&&ir.studioMinPct)?ir.studioMinPct:ir.minPct),
-      p:discAllowed(ir,dsc)?dsc.pct/100:0, oi:!!dsc.onInst, na:!!(isStudio&&ir.studioNoAdd),
+      mp:(discAllowed(ir,dsc)&&dsc.minPct&&ir.terms.length)?dsc.minPct:((dsc.req&&dsc.req.firstPct>ir.minPct)?dsc.req.firstPct:((isStudio&&ir.studioMinPct)?ir.studioMinPct:ir.minPct)),
+      p:discAllowed(ir,dsc)?dsc.pct/100:0, oi:!!dsc.onInst, na:!!(isStudio&&((dsc.req&&dsc.req.noAdd)||ir.studioNoAdd)),
       dn:(discAllowed(ir,dsc)&&dsc.promo)?dsc.promo:"",
       m:r.months, f:r.first};
     const termList=ir.terms.map(t=>t.max);
