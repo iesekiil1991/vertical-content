@@ -1119,6 +1119,7 @@ const RULES={
  hpdl12 :{name:"HYDROPARK 1-2",     hand:"I кв. 2028",  minPct:20, terms:[{max:12,add:50},{max:24,add:100},{max:25,add:150}]},
  hpdl3  :{name:"HYDROPARK 3",       hand:"I кв. 2027",  minPct:20, terms:[{max:12,add:50}]},
  hpdl4  :{name:"HYDROPARK 4",       hand:"I кв. 2027",  minPct:20, terms:[{max:12,add:50}]},
+ hpdl9  :{name:"HYDROPARK 9",     hand:"IV кв. 2028", minPct:20, terms:[{max:12,add:50},{max:24,add:100},{max:36,add:150}], defM:36},
  hpdl5  :{name:"HYDROPARK 5",       hand:"здано",       minPct:100,terms:[], done:true},
  manuf  :{name:"МАНУФАКТУРА",       hand:"здано",       minPct:100,terms:[], noDisc:true, done:true},
  lyst   :{name:"LYSTOPAD",          hand:"здано",       minPct:100,terms:[], noDisc:true, done:true},
@@ -1134,7 +1135,8 @@ const MAP={
  "Porto Franko|Секція 9":"pf611","Porto Franko|Секція 10":"pf611","Porto Franko|Секція 11":"pf611",
  "Hydropark Deluxe|Будинок 1":"hpdl12","Hydropark Deluxe|Будинок 2":"hpdl12",
  "Hydropark Deluxe|Будинок 3":"hpdl3","Hydropark Deluxe|Будинок 4":"hpdl4",
- "Hydropark Deluxe|Будинок 5":"hpdl5"
+ "Hydropark Deluxe|Будинок 5":"hpdl5",
+ "Hydropark Deluxe|Будинок 9":"hpdl9","Hydropark Deluxe|Секція 9":"hpdl9"
 };
 /* планування, яких немає в CRM — вже залиті в vertical-content */
 const DN_BUILTIN={"URBN":{d:"https://iesekiil1991.github.io/vertical-content/urbn-day.jpg",n:"https://iesekiil1991.github.io/vertical-content/urbn-night.jpg"},
@@ -1192,7 +1194,7 @@ function faqFor(cx,items){
   return Q;
 }
 
-const PLAN_BUILTIN={"Porto Franko": {"1|44.06": "https://iesekiil1991.github.io/vertical-content/pf-1k-44_06.jpg", "1|48.77": "https://iesekiil1991.github.io/vertical-content/pf-1k-48_77.jpg", "1|49.48": "https://iesekiil1991.github.io/vertical-content/pf-1k-49_48.jpg", "1|53.02": "https://iesekiil1991.github.io/vertical-content/pf-1k-53_02.jpg", "2|55.8": "https://iesekiil1991.github.io/vertical-content/pf-2k-55_80.jpg", "3|81.6": "https://iesekiil1991.github.io/vertical-content/pf-3k-81_60.jpg"}, "Hydropark Deluxe": {"2|72.7": "https://iesekiil1991.github.io/vertical-content/hpdl-2k-72_70.jpg", "2|65.4": "https://iesekiil1991.github.io/vertical-content/hpdl-2k-72_70.jpg"}};
+const PLAN_BUILTIN={"Porto Franko": {"1|44.06": "https://iesekiil1991.github.io/vertical-content/pf-1k-44_06.jpg", "1|48.77": "https://iesekiil1991.github.io/vertical-content/pf-1k-48_77.jpg", "1|49.48": "https://iesekiil1991.github.io/vertical-content/pf-1k-49_48.jpg", "1|53.02": "https://iesekiil1991.github.io/vertical-content/pf-1k-53_02.jpg", "2|55.8": "https://iesekiil1991.github.io/vertical-content/pf-2k-55_80.jpg", "3|81.6": "https://iesekiil1991.github.io/vertical-content/pf-3k-81_60.jpg"}, "Hydropark Deluxe": {"3|68.4": "https://iesekiil1991.github.io/vertical-content/hydropark/b9/3k-68-4.jpg","1|49": "https://iesekiil1991.github.io/vertical-content/hydropark/b9/1k-49-0.jpg","1|45.04": "https://iesekiil1991.github.io/vertical-content/hydropark/b9/1k-45-04.jpg","3|78.72": "https://iesekiil1991.github.io/vertical-content/hydropark/b9/3k-78-72.jpg","0|49.59": "https://iesekiil1991.github.io/vertical-content/hydropark/b9/studiya-49-59.jpg","1|47.75": "https://iesekiil1991.github.io/vertical-content/hydropark/b9/1k-47-75.jpg","2|55.78": "https://iesekiil1991.github.io/vertical-content/hydropark/b9/2k-55-78.jpg","1|44.42": "https://iesekiil1991.github.io/vertical-content/hydropark/b9/1k-44-42.jpg", "2|72.7": "https://iesekiil1991.github.io/vertical-content/hpdl-2k-72_70.jpg", "2|65.4": "https://iesekiil1991.github.io/vertical-content/hpdl-2k-72_70.jpg"}};
 function ownPlan(bld,rooms,square){
   const own=ownPlanLines(bld,rooms,square); if(own) return own;
   const b=PLAN_BUILTIN[bld]; return (b&&b[String(rooms)+"|"+(+square)])||"";
@@ -1264,7 +1266,7 @@ function surcharge(rule,months){
 }
 const maxMonths=r=>r.terms.length?Math.max(...r.terms.map(t=>t.max)):0;
 /* максимум — 25 міс (з листопада 2026); в офері за замовчуванням 24; довше — лише індивідуально, генератор не рахує */
-const defMonths=r=>{const m=r&&r.terms.length?maxMonths(r):0;return m>24?24:m;};
+const defMonths=r=>{if(r&&r.defM) return r.defM; const m=r&&r.terms.length?maxMonths(r):0;return m>24?24:m;};
 const extMonths=r=>maxMonths(r);
 function chainTotal(area,pD,pI,f){
   const m2=r2(f/pD), rest=r2(area-m2);
@@ -1383,12 +1385,12 @@ function floorImg(b,t){
   const n=parseInt(String(t).replace(/\D+/g,""),10); if(!n) return "";
   if(/porto/i.test(b)) return n<=11?VC_URL+"porto-franko/floors/s-"+String(n).padStart(2,"0")+"-plan.jpg":"";
   if(/urbn/i.test(b)) return n<=7?VC_URL+"urbn/floors/b-0"+n+"-plan.jpg":"";
-  if(/hydro/i.test(b)){ const m={1:"b-01",2:"b-02",3:"b-04",4:"b-03"}[n]; return m?VC_URL+"hydropark/floors/"+m+"-plan.jpg":""; }  // b-03 — це будинок 4, b-04 — будинок 3
+  if(/hydro/i.test(b)){ const m={1:"b-01",2:"b-02",3:"b-04",4:"b-03",9:"b-09"}[n]; return m?VC_URL+"hydropark/floors/"+m+"-plan.jpg":""; }  // b-03 — це будинок 4, b-04 — будинок 3
   return "";
 }
 const fmKey=u=>u.b+"|"+u.t+"|"+u.rooms+"|"+(+u.square);
 if(!CFG.floorMarks) CFG.floorMarks={};
-(function(seed){ for(const k in seed) if(!CFG.floorMarks[k]) CFG.floorMarks[k]=seed[k]; })({"Porto Franko|Секція 3|1|44.06": [[0.5547, 0.0192, 0.7674, 0.435], [0.7674, 0.0192, 0.8632, 0.2818]], "Porto Franko|Секція 3|1|48.77": [[0.2789, 0.0192, 0.5547, 0.435]]});
+(function(seed){ for(const k in seed) if(!CFG.floorMarks[k]) CFG.floorMarks[k]=seed[k]; })(Object.assign({"Hydropark Deluxe|Будинок 9|3|68.4": [[0.0063, 0.053, 0.3047, 0.4702]], "Hydropark Deluxe|Будинок 9|1|49": [[0.3047, 0.0159, 0.5078, 0.4702]], "Hydropark Deluxe|Будинок 9|1|45.04": [[0.5078, 0.0159, 0.7047, 0.4702]], "Hydropark Deluxe|Будинок 9|3|78.72": [[0.7047, 0.0159, 0.8867, 0.4702], [0.8867, 0.0159, 0.9969, 0.4702], [0.8867, 0.4702, 0.9969, 0.5272]], "Hydropark Deluxe|Будинок 9|0|49.59": [[0.0078, 0.4702, 0.1875, 0.9828]], "Hydropark Deluxe|Будинок 9|1|47.75": [[0.1875, 0.5536, 0.3781, 0.9828]], "Hydropark Deluxe|Будинок 9|2|55.78": [[0.5266, 0.5536, 0.7859, 0.9828]], "Hydropark Deluxe|Будинок 9|1|44.42": [[0.7859, 0.5536, 0.8867, 0.9828], [0.8867, 0.5272, 0.9969, 0.5536], [0.8867, 0.5536, 0.9969, 0.9828]]},{"Porto Franko|Секція 3|1|44.06": [[0.5547, 0.0192, 0.7674, 0.435], [0.7674, 0.0192, 0.8632, 0.2818]], "Porto Franko|Секція 3|1|48.77": [[0.2789, 0.0192, 0.5547, 0.435]]}));
 /* контур об'єднання прямокутників — без внутрішніх ліній */
 function rectOutline(rs){
   const xs=[...new Set(rs.flatMap(r=>[r[0],r[2]]))].sort((a,b)=>a-b), ys=[...new Set(rs.flatMap(r=>[r[1],r[3]]))].sort((a,b)=>a-b);
@@ -1439,7 +1441,7 @@ function openFM(i){
 let HIST=ls.get("vg-hist-v1",[]);
 let MEETS=ls.get("vg-meets-v1",[]);
 let PLANS=ls.get("vg-plans-v1",{});   // "площа|кімнати" -> опис
-const PLAN_DESC={"44.06|1": "Кухня 12 м² окремо від кімнати 19,4 м², гостей можна приймати на кухні. Санвузол з ванною, передпокій 6,5 м² з нішею під шафу, балкон.", "48.77|1": "По суті кухня-вітальня 18,6 м² плюс окрема спальня 18,8 м² з нішею під шафу. Санвузол з ванною, балкон.", "49.48|1": "Кухня-вітальня з обідньою зоною й окрема спальня. Великий балкон 10 м².", "53.02|1": "Кухня-вітальня й спальня в різних кінцях квартири, між ними санвузол з ванною. Балкон.", "55.8|2": "Кухня-вітальня 26 м² з балконом, спальня 12,4 м². Ванна й окремий туалет, комора 1,4 м², ніші під шафи.", "81.6|3": "Окрема кухня 16 м², вітальня 17,8 м², дві спальні: 16,7 і 12,7 м². Ванна й окремий туалет, балкон.", "72.7|2": "Окрема кухня 12,7 м² і вітальня 14,3 м². Лоджія 11,7 м² з безрамним склінням. Спальня 16 м², гардеробна 3 м², ванна 5,1 м²."};
+const PLAN_DESC={"68.4|3": "Вітальня 17,9 м² з кухнею-нішею і виходом на лоджію, плюс дві окремі спальні по 11–12 м². У кожної дитини своя кімната. Біля входу гардероб 2,9 м².","49|1": "Кухня-їдальня 18,2 м² — вільно стають і обідній стіл, і диван. Окрема спальня 13,2 м². Широкий коридор 9,5 м² з місцем під шафу і великий балкон 10,2 м².","45.04|1": "Кухня 15,2 м² окремо від кімнати 14,2 м²: гостей можна приймати на кухні, не заходячи в спальню. Окремий гардероб 3,4 м² і балкон.","78.72|3": "Найбільша квартира на поверсі: вітальня 18,9 м² з кухнею-нішею 8 м², спальні 15,3 і 10,8 м², гардероб і лоджія 10,6 м².","49.59|0": "Простір 33,8 м² без перегородок: кухня з обідньою зоною і вітальня-спальня, які легко зонувати. Велика ванна 6 м² і балкон 9,9 м².","47.75|1": "Окрема кухня 14,3 м² і кімната 11,2 м². Гардероб 3,3 м², щоб не захаращувати кімнату шафами, і простора лоджія 10,5 м².","55.78|2": "Велика кімната 23,4 м² з кухнею-нішею — вітальня, де вся родина разом. Окрема спальня 11,8 м² і балкон 9,9 м².","44.42|1": "Кухня 16,7 м² більша за кімнату 12,2 м² — якщо кухня для вас серце дому. Довгий коридор 8,3 м² з місцем під шафу і балкон 6,6 м².", "44.06|1": "Кухня 12 м² окремо від кімнати 19,4 м², гостей можна приймати на кухні. Санвузол з ванною, передпокій 6,5 м² з нішею під шафу, балкон.", "48.77|1": "По суті кухня-вітальня 18,6 м² плюс окрема спальня 18,8 м² з нішею під шафу. Санвузол з ванною, балкон.", "49.48|1": "Кухня-вітальня з обідньою зоною й окрема спальня. Великий балкон 10 м².", "53.02|1": "Кухня-вітальня й спальня в різних кінцях квартири, між ними санвузол з ванною. Балкон.", "55.8|2": "Кухня-вітальня 26 м² з балконом, спальня 12,4 м². Ванна й окремий туалет, комора 1,4 м², ніші під шафи.", "81.6|3": "Окрема кухня 16 м², вітальня 17,8 м², дві спальні: 16,7 і 12,7 м². Ванна й окремий туалет, балкон.", "72.7|2": "Окрема кухня 12,7 м² і вітальня 14,3 м². Лоджія 11,7 м² з безрамним склінням. Спальня 16 м², гардеробна 3 м², ванна 5,1 м²."};
 PLAN_DESC["65.4|2"]=PLAN_DESC["72.7|2"];   // Hydropark 5: та сама квартира, фактична площа 65,4 м²
 for(const k in PLAN_DESC) if(!PLANS[k]) PLANS[k]=PLAN_DESC[k];
 let DESCR=ls.get("vg-descr-v1",{});
@@ -1499,7 +1501,22 @@ function crmFix(b,t,u){
   const x=CRM_FIX.find(f=>f[0]===b&&f[1]===t&&f[2]===String(u.rooms)&&Math.abs(f[3]-n(u.square))<0.01);
   return x?Object.assign({},u,x[4]):u;
 }
+/* Hydropark Deluxe, секція (будинок) 9 — шахматка від Єгора 20.11.2026; поки її немає в CRM.
+   [код, поверх, кімнат, площа, $/м² при 100% оплаті, офіційний №, планування]. Коли секція з'явиться в CRM — беремо з CRM. */
+const HP9_DATE="20.11.2026";
+const HP9=[["Р2-A", 2, "3", 78.72, 1480, 6, "3k-78-72"], ["Р2-C", 2, "1", 49.0, 1545, 4, "1k-49-0"], ["Р2-D", 2, "3", 68.4, 1480, 3, "3k-68-4"], ["Р2-E", 2, "1", 44.42, 1545, 7, "1k-44-42"], ["Р2-G", 2, "1", 47.75, 1545, 1, "1k-47-75"], ["Р3-A", 3, "3", 78.72, 1530, 14, "3k-78-72"], ["Р3-C", 3, "1", 49.0, 1595, 12, "1k-49-0"], ["Р3-D", 3, "3", 68.4, 1530, 11, "3k-68-4"], ["Р3-E", 3, "1", 44.42, 1595, 15, "1k-44-42"], ["Р3-H", 3, "0", 49.59, 1595, 10, "studiya-49-59"], ["Р4-A", 4, "3", 78.72, 1580, 22, "3k-78-72"], ["Р4-C", 4, "1", 49.0, 1645, 20, "1k-49-0"], ["Р4-D", 4, "3", 68.4, 1580, 19, "3k-68-4"], ["Р4-E", 4, "1", 44.42, 1645, 23, "1k-44-42"], ["Р4-H", 4, "0", 49.59, 1645, 18, "studiya-49-59"], ["Р5-A", 5, "3", 78.72, 1630, 30, "3k-78-72"], ["Р5-B", 5, "1", 45.04, 1695, 29, "1k-45-04"], ["Р5-C", 5, "1", 49.0, 1695, 28, "1k-49-0"], ["Р5-G", 5, "1", 47.75, 1695, 25, "1k-47-75"], ["Р5-H", 5, "0", 49.59, 1695, 26, "studiya-49-59"], ["Р6-A", 6, "3", 78.72, 1680, 38, "3k-78-72"], ["Р6-C", 6, "1", 49.0, 1745, 36, "1k-49-0"], ["Р6-D", 6, "3", 68.4, 1680, 35, "3k-68-4"], ["Р6-E", 6, "1", 44.42, 1745, 39, "1k-44-42"], ["Р6-F", 6, "2", 55.78, 1720, 40, "2k-55-78"], ["Р6-G", 6, "1", 47.75, 1745, 33, "1k-47-75"], ["Р6-H", 6, "0", 49.59, 1745, 34, "studiya-49-59"], ["Р7-A", 7, "3", 78.72, 1630, 46, "3k-78-72"], ["Р7-B", 7, "1", 45.04, 1695, 45, "1k-45-04"], ["Р7-C", 7, "1", 49.0, 1695, 44, "1k-49-0"], ["Р7-D", 7, "3", 68.4, 1630, 43, "3k-68-4"], ["Р7-E", 7, "1", 44.42, 1695, 47, "1k-44-42"], ["Р7-F", 7, "2", 55.78, 1670, 48, "2k-55-78"], ["Р7-G", 7, "1", 47.75, 1695, 41, "1k-47-75"], ["Р8-A", 8, "3", 78.72, 1580, 54, "3k-78-72"], ["Р8-C", 8, "1", 49.0, 1645, 52, "1k-49-0"], ["Р8-D", 8, "3", 68.4, 1580, 51, "3k-68-4"], ["Р8-E", 8, "1", 44.42, 1645, 55, "1k-44-42"], ["Р8-F", 8, "2", 55.78, 1620, 56, "2k-55-78"], ["Р8-G", 8, "1", 47.75, 1645, 49, "1k-47-75"], ["Р8-H", 8, "0", 49.59, 1645, 50, "studiya-49-59"], ["Р9-A", 9, "3", 78.72, 1530, 62, "3k-78-72"], ["Р9-B", 9, "1", 45.04, 1595, 61, "1k-45-04"], ["Р9-C", 9, "1", 49.0, 1595, 60, "1k-49-0"], ["Р9-D", 9, "3", 68.4, 1530, 59, "3k-68-4"], ["Р9-E", 9, "1", 44.42, 1595, 63, "1k-44-42"], ["Р9-F", 9, "2", 55.78, 1570, 64, "2k-55-78"], ["Р9-G", 9, "1", 47.75, 1595, 57, "1k-47-75"], ["Р9-H", 9, "0", 49.59, 1595, 58, "studiya-49-59"]];
+function withHP9(json){
+  const bs=json.buildings=json.buildings||[];
+  let b=bs.find(x=>/hydropark/i.test(x.title));
+  if(!b){ b={title:"Hydropark Deluxe",tables:[]}; bs.push(b); }
+  b.tables=b.tables||[];
+  if(b.tables.some(t=>/(^|\D)9$/.test(String(t.title).trim())&&(t.units||[]).length)) return json;
+  b.tables.push({title:"Будинок 9",units:HP9.map(x=>({id:"hp9-"+x[0],floor_title:String(x[1]),price:String(x[4]),rooms:x[2],square:String(x[3]),
+    status:"free",section:"living",layout_type:x[0].slice(-1),number:String(x[5]),images:[{tag:"2d",url:"https://iesekiil1991.github.io/vertical-content/hydropark/b9/"+x[6]+".jpg"}]}))});
+  return json;
+}
 function loadCRM(json){
+  json=withHP9(json);
   const g={}, tops=topFloors(json); PL_DIFF=new Set();
   for(const b of (json.buildings||[])){
     for(const t of (b.tables||[])){
@@ -2796,7 +2813,12 @@ function cardFit(c,txt,font,size,maxW,min){let s=size;do{c.font=font.replace("{s
 function cardWrap(c,txt,x,y,maxW,lh,maxLines){
   const words=String(txt).split(/\s+/);let line="",n=0;
   for(let i=0;i<words.length;i++){const t=line?line+" "+words[i]:words[i];
-    if(c.measureText(t).width>maxW&&line){c.fillText(line,x,y+n*lh);n++;line=words[i];if(maxLines&&n>=maxLines)return n;}else line=t;}
+    if(c.measureText(t).width>maxW&&line){
+      if(maxLines&&n+1>=maxLines){ /* обрізаємо по кінцю фрази, а не посеред слова-думки */
+        const k=Math.max(line.lastIndexOf(","),line.lastIndexOf(":"),line.lastIndexOf(" —"));
+        line=k>line.length*0.4?line.slice(0,k):line.replace(/[,:;]?$/,"")+"…";
+        c.fillText(line,x,y+n*lh);return n+1;}
+      c.fillText(line,x,y+n*lh);n++;line=words[i];}else line=t;}
   if(line){c.fillText(line,x,y+n*lh);n++;}return n;
 }
 function cardData(p){
@@ -2818,7 +2840,7 @@ async function drawCard(p,name){
   const [render,plan]=await Promise.all([
     cardImg((dn&&dn.d)||String(C.render||"").split(/\s*[\n,]\s*/).map(x=>x.trim()).filter(Boolean)[0]),
     (async()=>{ const own=ownPlan(u.b,u.rooms,u.square); let im=own?await cardImg(own):null;
-      if(!im&&u.img){ const f=String(u.img).split("/").pop().split("?")[0]; im=await cardImg(CARD_MIRROR+f); }
+      if(!im&&u.img){ const f=String(u.img).split("/").pop().split("?")[0]; im=await cardImg(/github\.io\//.test(u.img)?u.img:CARD_MIRROR+f); }
       return im; })()
   ]);
   c.fillStyle="#F4F6F7"; c.fillRect(0,0,W,H);
