@@ -1473,6 +1473,7 @@ function topFloors(json){
 }
 function floorPrice(bld,tbl,floor,price,tops){
   if(!/URBN|Porto Franko/i.test(bld)) return price;
+  if(bfActive()) return price;   // Чорна П'ятниця: інші акції, зокрема −50 $/м² за 2-й/останній поверх, не діють (як у калькуляторі)
   const top=tops[bld+"|"+tbl];
   if(floor===2||(top&&floor===top)) return price-50;
   return price;
