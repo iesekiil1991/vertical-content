@@ -1520,7 +1520,14 @@ function withHP9(json){
   let b=bs.find(x=>/hydropark/i.test(x.title));
   if(!b){ b={title:"Hydropark Deluxe",tables:[]}; bs.push(b); }
   b.tables=b.tables||[];
-  if(b.tables.some(t=>/(^|\D)9$/.test(String(t.title).trim())&&(t.units||[]).length)) return json;
+  /* у CRM назви бувають з хвостом «Будинок 9 (0)» — прибираємо його, щоб працювали умови, план поверху й позначки */
+  for(const x of bs) for(const t of (x.tables||[])) t.title=String(t.title||"").replace(/\s*\(\d+\)\s*$/,"").trim();
+  const t9=b.tables.find(t=>/(^|\D)9$/.test(String(t.title).trim())&&(t.units||[]).length);
+  if(t9){ /* секція 9 вже є в CRM — беремо її, а планування без картинки доповнюємо нашими */
+    for(const u of t9.units){ const has=(u.images||[]).some(i=>i&&i.url); if(has) continue;
+      const m=HP9.find(x=>String(x[2])===String(u.rooms)&&Math.abs(x[3]-parseFloat(u.square))<0.011);
+      if(m) u.images=[{tag:"2d",url:"https://iesekiil1991.github.io/vertical-content/hydropark/b9/"+m[6]+".jpg"}]; }
+    return json; }
   b.tables.push({title:"Будинок 9",units:HP9.map(x=>({id:"hp9-"+x[0],floor_title:String(x[1]),price:String(x[4]),rooms:x[2],square:String(x[3]),
     status:"free",section:"living",layout_type:x[0].slice(-1),number:String(x[5]),images:[{tag:"2d",url:"https://iesekiil1991.github.io/vertical-content/hydropark/b9/"+x[6]+".jpg"}]}))});
   return json;
