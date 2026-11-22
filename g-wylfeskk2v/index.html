@@ -1523,6 +1523,10 @@ function withHP9(json){
   b.tables=b.tables||[];
   /* у CRM назви бувають з хвостом «Будинок 9 (0)» — прибираємо його, щоб працювали умови, план поверху й позначки */
   for(const x of bs) for(const t of (x.tables||[])) t.title=String(t.title||"").replace(/\s*\(\d+\)\s*$/,"").trim();
+  /* Ручне відкриття: 22.11.2026 Єгор — у продажу, хоча в CRM «продано». Прибрати, коли CRM оновиться. */
+  const FORCE_FREE=[["Porto Franko","Секція 3",["30","36","42"]]];
+  for(const [bn,tn,nums] of FORCE_FREE){ const x=bs.find(z=>z.title===bn); const t=x&&(x.tables||[]).find(z=>z.title===tn);
+    if(t) for(const u of (t.units||[])) if(nums.includes(String(u.number))&&u.status!=="free"&&u.status!=="booked") u.status="free"; }
   const t9=b.tables.find(t=>/(^|\D)9$/.test(String(t.title).trim())&&(t.units||[]).length);
   if(t9){ /* секція 9 вже є в CRM — беремо її, а планування без картинки доповнюємо нашими */
     for(const u of t9.units){ const has=(u.images||[]).some(i=>i&&i.url); if(has) continue;
