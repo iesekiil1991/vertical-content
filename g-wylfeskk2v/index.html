@@ -70,6 +70,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-of
 .badge.ok{background:var(--ok-bg);color:var(--ok)}
 .badge.near{background:var(--gold-bg);color:var(--gold-txt)}
 .badge.far{background:var(--warn-bg);color:var(--warn)}
+.badge.bk{background:#ffe2c2;color:#9a4a00;margin-left:4px}
+.bkf{background:#ffe2c2;color:#9a4a00;border-radius:3px;padding:0 3px;font-weight:600}
+.bknote{background:#fff3e4;border:1px solid #ffc98a;color:#7a3c00;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:13px}
 .sel{border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:10px;background:#fff}
 .sel .h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:10px}
 .sel .h b{font-size:15px}
@@ -1560,16 +1563,17 @@ function loadCRM(json){
   for(const b of (json.buildings||[])){
     for(const t of (b.tables||[])){
       for(const u0 of (t.units||[])){
-        if(u0.status!=="free"||u0.section!=="living") continue;
+        if((u0.status!=="free"&&u0.status!=="booked")||u0.section!=="living") continue;   // бронь теж показуємо — її можна продати (позначаємо для менеджера)
         const u=crmFix(b.title,t.title,u0);
         const k=[b.title,t.title,u.rooms,u.square].join("|");
         if(!g[k]) g[k]={id:k,b:b.title,t:t.title,rooms:String(u.rooms),square:n(u.square),
-          layout:u.layout_type||"",floors:[],byPrice:{},
+          layout:u.layout_type||"",floors:[],byPrice:{},_free:[],_bk:[],
           img:(u.images&&u.images[0])?u.images[0].url:""};
         const f=parseInt(u.floor_title,10);
         const lp=listPrice(b.title,t.title,u.rooms,n(u.square),n(u.price),f);
         const pr=isPromo50(b.title,t.title,u.rooms,n(u.square))?lp:floorPrice(b.title,t.title,f,lp,tops);  // на акційних −50 за 2-й/останній поверх не діє
         if(isFinite(f)&&!g[k].floors.includes(f)) g[k].floors.push(f);
+        if(isFinite(f)) (u0.status==="booked"?g[k]._bk:g[k]._free).push(f);
         if(pr>0&&pr<lp){ (g[k].fl50=g[k].fl50||{})[pr]=lp-pr; }
         if(pr>0){ (g[k].byPrice[pr]=g[k].byPrice[pr]||[]); 
           if(isFinite(f)&&!g[k].byPrice[pr].includes(f)) g[k].byPrice[pr].push(f); }
@@ -1583,6 +1587,8 @@ function loadCRM(json){
       .map(pr=>({price:pr,floors:x.byPrice[pr].slice().sort((a,b)=>a-b),fl50:(x.fl50&&x.fl50[pr])||0}));
     delete x.fl50;
     delete x.byPrice;
+    x.booked=[...new Set(x._bk.filter(f=>!x._free.includes(f)))].sort((a,b)=>a-b);   // поверхи, де ця квартира лише в броні
+    delete x._free; delete x._bk;
     x.price=x.vars.length?x.vars[0].price:0;
     const top=tops[x.b+"|"+x.t];
     x.defVar=/Hydropark/i.test(x.b)?0:Math.max(0,x.vars.findIndex(v=>v.floors.some(f=>f!==2&&f!==top)));
@@ -1698,10 +1704,10 @@ function render(){
         ?`<img src="${esc(u.img||ownPlan(u.b,u.rooms,u.square))}" loading="lazy">`
         :`<div class="noimg">планування немає</div>`}
       <div class="b">
-        ${bg}
+        ${bg}${(u.booked||[]).length?`<span class="badge bk">${(u.booked.length===(u.floors||[]).length)?"бронь":"є бронь"}</span>`:""}
         <div class="t">${roomShort(u.rooms)} · ${num(u.square)} м²</div>
         <div class="m">${esc(u.b)} · ${esc(u.t)}</div>
-        <div class="m">пов. ${(u.fl||u.floors).join(", ")||"—"}</div>
+        <div class="m">пов. ${(u.fl||u.floors).map(f=>(u.booked||[]).includes(f)?`<span class="bkf" title="бронь">${f} бронь</span>`:f).join(", ")||"—"}</div>
         <div class="p">${usd(u.full)} <span class="m" style="font-weight:400">· ${
           (u.vars&&u.vars.length>1)?`${u.vars[0].price}–${u.vars[u.vars.length-1].price} $/м²`:`${u.price} $/м²`}</span></div>
         ${u.afford&&!u.afford.full?`<div class="m">внесок ${usd(u.afford.first)} · ${usd(u.afford.monthly)}/міс × ${u.afford.months}</div>`:""}
@@ -1854,10 +1860,11 @@ function renderSel(){
           <input class="mono" type="number" value="${p.first||""}" placeholder="${fmt(r.minFirst)}" data-a="first" data-i="${i}"></label>
         ${vs.length>1?`<label class="f" style="min-width:230px"><span class="hint">Поверхи й ціна за м²</span>
           <select data-a="var" data-i="${i}">${vs.map((v,k)=>
-            `<option value="${k}" ${k===vi?"selected":""}>${varPrice(p,v)} $/м² · пов. ${v.floors.join(", ")}</option>`).join("")}</select></label>`:""}
+            `<option value="${k}" ${k===vi?"selected":""}>${varPrice(p,v)} $/м² · пов. ${v.floors.map(f=>(u.booked||[]).includes(f)?f+" (бронь)":f).join(", ")}</option>`).join("")}</select></label>`:""}
         <label class="f"><span class="hint">Ціна за м², $ ${p.priceOverride>0?"— індивідуальна":"(прайс "+vs[vi].price+")"}</span>
           <input class="mono" type="number" value="${p.priceOverride||""}" placeholder="${vs[vi].price}" data-a="price" data-i="${i}"></label>
       </div>
+      ${(u.booked||[]).length?`<div class="bknote">🟠 Бронь: ${u.booked.length===1?"поверх":"поверхи"} ${u.booked.join(", ")}. Клієнт в офері броні не бачить.</div>`:""}
       <div data-cb="${i}">${calcBox(p,i)}</div>
       <label class="f"><span class="hint">Які поверхи показати (через кому, порожньо — не показувати)</span>
         <input class="mono" value="${(p.floors||[]).join(", ")}" data-a="flist" data-i="${i}" placeholder="${u.floors.join(", ")}"></label>
