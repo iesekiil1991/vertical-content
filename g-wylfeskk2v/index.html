@@ -750,6 +750,8 @@ function deal(u,months,discIdx,want,extra,pctW){
 }
 function discOk(u,d){
   const r=String(u.rooms),nm=d.name||"";
+  if(d.only&&!String(u.rule.name||"").toUpperCase().includes(d.only))return false;
+  if(d.indiv)return D.disc[n(u.discIdx)]===d;
   if(u.rule.noDisc)return d.pct===0||!!d.all;
   if(d.req)return r==="0"&&!!u.rule.studioPromo;
   if(d.onInst){
@@ -1250,7 +1252,9 @@ const DISC=[
  {name:"Військові −10% (3К)",pct:10,onInst:true},
  {name:"Військові −7% (1К, 2К)",pct:7,onInst:true},
  {name:"Військові −5% (Porto Franko 1-5)",pct:5,onInst:true},
- {name:"Чорна П'ятниця −10% (20–30.11)",pct:10,onInst:false,all:true,minPct:20,from:"2026-11-20",to:"2026-11-30",promo:"Чорна П'ятниця"}
+ {name:"Чорна П'ятниця −10% (20–30.11)",pct:10,onInst:false,all:true,minPct:20,from:"2026-11-20",to:"2026-11-30",promo:"Чорна П'ятниця"},
+ /* індивідуальна знижка під клієнта: лише HydroPark, у презентації видно тільки там, де її обрано */
+ {name:"Індивідуальна −8% (HydroPark)",pct:8,onInst:false,only:"HYDROPARK",indiv:true}
 ];
 /* акція діє на всю нерухомість (і там, де інші знижки не діють), не сумується з іншими */
 const BF_IDX=DISC.findIndex(d=>d.all);
@@ -1259,7 +1263,10 @@ const bfActive=()=>BF_IDX>=0&&inWindow(DISC[BF_IDX]);
 const defDisc=()=>bfActive()?BF_IDX:1;
 /* ціна варіанта поверхів: з «Чорною П'ятницею» поверхова знижка −50 $ не діє */
 const varPrice=(p,v)=>v.price+(((DISC[p.discIdx]||{}).all&&v.fl50)?v.fl50:0);
-const discAllowed=(rule,d)=>!(rule&&rule.noDisc)||!d||d.pct===0||!!d.all;
+const discAllowed=(rule,d)=>{
+  if(d&&d.only&&!String((rule&&rule.name)||"").toUpperCase().includes(d.only)) return false;
+  return !(rule&&rule.noDisc)||!d||d.pct===0||!!d.all;
+};
 
 /* ================= ФОРМУЛА (з калькулятора) ================= */
 function surcharge(rule,months){
